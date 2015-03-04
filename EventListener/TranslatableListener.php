@@ -107,7 +107,7 @@ class TranslatableListener implements EventSubscriber, TranslatableListenerInter
         }
 
         if ($reflClass->implementsInterface('Sylius\Component\Translation\Model\TranslationInterface')) {
-            $this->mapTranslation($classMetadata);
+            $this->mapTranslation($classMetadata, $eventArgs);
         }
     }
 
@@ -143,8 +143,9 @@ class TranslatableListener implements EventSubscriber, TranslatableListenerInter
      * Add mapping data to a translation entity
      *
      * @param ClassMetadata $mapping
+     * @param LoadClassMetadataEventArgs $eventArgs
      */
-    private function mapTranslation(ClassMetadata $mapping)
+    private function mapTranslation(ClassMetadata $mapping, LoadClassMetadataEventArgs $eventArgs)
     {
         // In the case A -> B -> TranslationInterface, B might not have mapping defined as it
         // is probably defined in A, so in that case, we just return;
@@ -157,13 +158,19 @@ class TranslatableListener implements EventSubscriber, TranslatableListenerInter
         // Map translatable relation
         $translatableMetadata = $this->metadata[$translationMetadata['targetEntity']];
 
+        $targetEntity = $translationMetadata['targetEntity'];
+        $targetEntityMetadata = $eventArgs
+            ->getEntityManager()
+            ->getMetadataFactory()
+            ->getMetadataFor($targetEntity);
+
         $mapping->mapManyToOne(array(
             'fieldName'    => $translationMetadata['field'],
             'targetEntity' => $translationMetadata['targetEntity'],
             'inversedBy'   => $translatableMetadata['field'],
             'joinColumns'  => array(array(
                 'name'                 => 'translatable_id',
-                'referencedColumnName' => 'id',
+                'referencedColumnName' => $targetEntityMetadata->fieldMappings['id']['columnName'],
                 'onDelete'             => 'CASCADE',
                 'nullable'             => false,
             )),
